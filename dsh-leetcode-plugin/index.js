@@ -1,0 +1,145 @@
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+export const name = 'dsh-leetcode-plugin'
+export const inject = ['commands', 'tools']
+
+// ---- 配置（环境变量可覆盖） ----
+const VAULT = process.env.DSH_LEETCODE_VAULT ?? '/Users/panxingbang/Desktop/deepseek/dsh/leetcode'
+const LEETCODE_BASE = process.env.DSH_LEETCODE_BASE ?? 'https://leetcode.cn'
+
+// 本地时区日期（避免 UTC 在凌晨 0-8 点记成"昨天"）
+const today = () => {
+  const d = new Date()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${day}`
+}
+
+const pad4 = (n) => String(n).padStart(4, '0')
+
+const leetcodeUrl = (raw) => {
+  const input = String(raw ?? '').trim()
+  if (/^https?:\/\//i.test(input)) return input
+  const n = input.replace(/\D/g, '')
+  return n ? `${LEETCODE_BASE}/problemset/all/?search=${n}` : `${LEETCODE_BASE}/problemset/all/`
+}
+
+const textRender = (_args, value) => [{ type: 'text', text: value }]
+
+// 内联 createUserMessage（等价 @deepseek-ai/dsh-llm 的实现：纯类型品牌，运行时就是 {content, source, role:'user', id}），保持零依赖
+const createUserMessage = (input) => Object.freeze({ ...input, role: 'user', id: `lc-${crypto.randomUUID()}` })
+
+// 按编号前缀找已有笔记：优先带 slug 的（LeetLog 英文，如 0001-two-sum.md），其次纯编号 0001.md
+function findNoteByNumber(number) {
+  const dir = join(VAULT, 'solutions')
+  if (!existsSync(dir)) return undefined
+  const prefix = pad4(number)
+  const files = readdirSync(dir).filter((f) => f.endsWith('.md') && f.startsWith(prefix))
+  if (files.length === 0) return undefined
+  const slug = files.filter((f) => f.startsWith(prefix + '-')).sort()
+  const bare = files.filter((f) => f === prefix + '.md')
+  const chosen = slug[0] ?? bare[0] ?? files.sort()[0]
+  return { file: join(dir, chosen), rel: `solutions/${chosen}` }
+}
+
+// 在 frontmatter 里设置/追加一个字段（不覆盖其他字段）
+function setFrontmatterField(file, key, value) {
+  const content = readFileSync(file, 'utf8')
+  const re = new RegExp(`^(${key}: ).*$`, 'm')
+  if (re.test(content)) {
+    writeFileSync(file, content.replace(re, `$1${value}`), 'utf8')
+    return
+  }
+  const m = content.match(/^---\n/m)
+  if (!m) return
+  const at = m.index + m[0].length
+  writeFileSync(file, content.slice(0, at) + `${key}: ${value}\n` + content.slice(at), 'utf8')
+}
+
+// 追加一段 AI 辅助思路
+function appendAiInsight(file, insight) {
+  const content = readFileSync(file, 'utf8')
+  const block = `\n- [${today()}] ${insight}\n`
+  writeFileSync(file, content.includes('## AI 辅助思路')
+    ? content.replace(/## AI 辅助思路\n/, `## AI 辅助思路\n${block}`)
+    : `${content.replace(/\s+$/, '')}\n\n## AI 辅助思路\n${block}`, 'utf8')
+}
+
+// 无笔记时的兜底新建（LeetLog 风格最小笔记）
+function createFallbackNote(number, title) {
+  mkdirSync(join(VAULT, 'solutions'), { recursive: true })
+  const rel = `solutions/${pad4(number)}.md`
+  const file = join(VAULT, rel)
+  if (!existsSync(file)) {
+    writeFileSync(file, `---\nid: ${number}\ntitle: "${title ?? ''}"\nurl: ${leetcodeUrl(number)}\ndifficulty: \n---\n\n# ${number}. ${title ?? ''}\n`, 'utf8')
+  }
+  return { file, rel }
+}
+
+export function apply(ctx) {
+  // ---- /lc-fupan：触发 AI 复盘指定题目（命令 handler 通过 agent.steer 投递一条用户消息给模型） ----
+  ctx.commands.register({
+    name: 'lc-fupan',
+    description: '复盘指定编号的 LeetCode 题：读取笔记 → AI 分析解法 → 写入复盘结果',
+    input: { hint: '题目编号，如 26' },
+    handler(inv) {
+      const number = String(inv.rawInput ?? '').trim().replace(/\D/g, '')
+      if (!number) return { kind: 'error', text: '请提供题目编号，例如 /lc-fupan 26' }
+      const found = findNoteByNumber(number)
+      if (!found) return { kind: 'error', text: `第 ${number} 题还没有笔记（先在 LeetCode 刷完，LeetLog 会自动生成）` }
+      const prompt = [
+        `请复盘 LeetCode 第 ${number} 题。`,
+        `1. 用 read 工具读取笔记文件（绝对路径）：${found.file}`,
+        '2. 分析其中「我的解法」的代码：是否正确、是否最优、复杂度如何',
+        `3. 调用 leetcode_record_note 工具（number=${number}），把 AI 辅助思路(insight)、复习状态(status)、时间复杂度(time)、空间复杂度(space) 写进笔记`,
+        '4. 在回复里给出一段简洁的复盘总结（核心思路 + 复杂度 + 可改进点）',
+      ].join('\n')
+      inv.agent.steer(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
+      return { kind: 'success', text: `已触发第 ${number} 题复盘，AI 正在分析…` }
+    },
+  })
+
+  // ---- 工具（供 agent 调用） ----
+  // 定位：LeetLog 负责"采集代码/统计"，本工具只负责"追加 AI 思路 + 复习状态 + 复杂度"
+  ctx.tools.register({
+    name: 'leetcode_record_note',
+    description: '把 AI 辅助思路、复习状态、复杂度追加进某道题的笔记（LeetLog 生成的那篇，按编号匹配）。笔记不存在则新建兜底。',
+    parameters: {
+      type: 'object',
+      properties: {
+        number: { type: 'string', description: '题目编号，如 "1"' },
+        title: { type: 'string', description: '题目标题（仅当笔记不存在时用于新建）' },
+        insight: { type: 'string', description: 'AI 辅助思路 / 复盘要点' },
+        status: { type: 'string', description: '复习状态：已掌握 / 复习中 / 未掌握' },
+        time: { type: 'string', description: '时间复杂度，如 O(n)' },
+        space: { type: 'string', description: '空间复杂度，如 O(n)' },
+      },
+      required: ['number'],
+    },
+    output: { schema: { type: 'string' }, render: textRender },
+    async execute(args) {
+      const number = String(args?.number ?? '').trim()
+      if (!number) return '缺少 number 参数'
+      const target = findNoteByNumber(number) ?? createFallbackNote(number, args?.title)
+      if (args?.insight) appendAiInsight(target.file, String(args.insight).trim())
+      if (args?.status) setFrontmatterField(target.file, '状态', String(args.status).trim())
+      if (args?.time) setFrontmatterField(target.file, '复杂度-时间', String(args.time).trim())
+      if (args?.space) setFrontmatterField(target.file, '复杂度-空间', String(args.space).trim())
+      return `已写入 ${target.rel}`
+    },
+  })
+
+  ctx.tools.register({
+    name: 'leetcode_list_notes',
+    description: '列出本地刷题库 solutions/ 目录下已有的题目笔记文件名。',
+    parameters: { type: 'object', properties: {} },
+    output: { schema: { type: 'string' }, render: textRender },
+    async execute() {
+      const dir = join(VAULT, 'solutions')
+      if (!existsSync(dir)) return '（还没有任何题目笔记）'
+      const files = readdirSync(dir).filter((f) => f.endsWith('.md')).sort()
+      return files.length ? files.map((f, i) => `${i + 1}. ${f}`).join('\n') : '（空）'
+    },
+  })
+}
