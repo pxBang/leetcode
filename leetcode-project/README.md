@@ -60,11 +60,13 @@ dsh web
 | `leetcode_record_note` | 追加 AI 思路/状态/复杂度：number/insight/status/time/space |
 | `leetcode_list_notes` | 列出已有笔记 |
 
-### 配置（环境变量）
-| 变量 | 默认值 |
-|---|---|
-| `DSH_LEETCODE_VAULT` | `/Users/panxingbang/Desktop/leetcode/leetcode` |
-| `DSH_LEETCODE_BASE` | `https://leetcode.cn` |
+### 配置（插件 config schema）
+| 字段 | 默认值 | 说明 |
+|---|---|---|
+| `vault` | `/Users/panxingbang/Desktop/leetcode/leetcode` | Obsidian vault 目录 |
+| `leetcodeBase` | `https://leetcode.cn` | LeetCode 站点 |
+
+配置写在 `dsh-leetcode-plugin/cordis.patch.yml` 的 `id: leetcode` 条目 `config` 里，改完重启 `dsh web` 生效。
 
 ## 日常刷题工作流
 

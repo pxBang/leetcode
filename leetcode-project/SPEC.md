@@ -1,6 +1,6 @@
 # LeetCode 刷题系统 Spec
 
-> 版本：0.7 · 2026-08-17
+> 版本：0.7.1 · 2026-08-17
 > 目标：官方题库刷题 + 每次刷完有记录（代码 + 我的思路 + AI 辅助思路 + 复盘），记录本地化、可搜索、可版本管理，并能从 DSH Web 页面复盘与 git 同步。
 
 ## 1. 目标
@@ -92,6 +92,7 @@ LeetLog 按英文 slug 命名：`solutions/NNNN-slug.md`（如 `0001-two-sum.md`
 
 ### 5.1 设计原则
 - **零依赖**：不 import 任何 `@deepseek-ai/*` 包，避免 pnpm 依赖问题与版本对齐风险。
+- **配置走 config schema**：`export const Config` 声明手写的 standard-schema（零依赖），Cordis 在加载时校验并合并默认值，替代环境变量。
 - **命令 vs 工具分工**：命令（slash）负责「复盘触发 + git 同步」，工具负责「写数据」。
 - 工具用纯 ToolDefinition 对象注册（`parameters` 直接是编译好的 JSON Schema）。
 
@@ -109,11 +110,13 @@ LeetLog 按英文 slug 命名：`solutions/NNNN-slug.md`（如 `0001-two-sum.md`
 | `leetcode_record_note` | 追加 insight / 状态 / 复杂度-时间 / 复杂度-空间 |
 | `leetcode_list_notes` | 列出 solutions/ 下文件名 |
 
-### 5.4 配置（环境变量）
-| 变量 | 默认值 |
-|---|---|
-| `DSH_LEETCODE_VAULT` | `/Users/panxingbang/Desktop/leetcode/leetcode` |
-| `DSH_LEETCODE_BASE` | `https://leetcode.cn` |
+### 5.4 配置（插件 config schema）
+| 字段 | 默认值 | 说明 |
+|---|---|---|
+| `vault` | `/Users/panxingbang/Desktop/leetcode/leetcode` | Obsidian vault 目录 |
+| `leetcodeBase` | `https://leetcode.cn` | LeetCode 站点 |
+
+通过 `export const Config`（手写 standard-schema，零依赖）声明，Cordis 加载时校验并合并默认值；配置写在 `dsh-leetcode-plugin/cordis.patch.yml` 的 `id: leetcode` 条目 `config` 里（整段替换，漏写字段回落默认值）。
 
 ## 6. 工作流
 
@@ -134,6 +137,7 @@ LeetLog 按英文 slug 命名：`solutions/NNNN-slug.md`（如 `0001-two-sum.md`
 | 决策 | 理由 |
 |---|---|
 | 零依赖插件 | 规避 pnpm 依赖问题 + 版本对齐，最稳 |
+| 配置走插件 `Config`（手写 standard-schema） | 替代环境变量：默认值 + 校验，仍零依赖 |
 | 命令做触发/同步、工具做写入 | 写入要 agent 参与；同步是确定性操作 |
 | vault 用纯 Markdown | Obsidian 原生、Git 友好、可搜索、可迁移 |
 | 编号补零 4 位 | 排序稳定 |

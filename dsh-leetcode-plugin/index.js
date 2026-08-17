@@ -5,9 +5,42 @@ import { spawnSync } from 'node:child_process'
 export const name = 'dsh-leetcode-plugin'
 export const inject = ['commands', 'tools']
 
-// ---- 配置（环境变量可覆盖） ----
-const VAULT = process.env.DSH_LEETCODE_VAULT ?? '/Users/panxingbang/Desktop/leetcode/leetcode'
-const LEETCODE_BASE = process.env.DSH_LEETCODE_BASE ?? 'https://leetcode.cn'
+// ---- 默认配置（可被 cordis.patch.yml 里的 config 覆盖） ----
+const DEFAULT_VAULT = '/Users/panxingbang/Desktop/leetcode/leetcode'
+const DEFAULT_BASE = 'https://leetcode.cn'
+
+// ---- 插件配置 schema（零依赖：手写 standard-schema 协议，Cordis 在加载时校验并合并默认值） ----
+export const Config = {
+  ['~standard']: {
+    version: 1,
+    vendor: 'dsh-leetcode-plugin',
+    validate(value) {
+      const issues = []
+      const raw = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+      const out = {}
+
+      const vault = raw.vault ?? DEFAULT_VAULT
+      if (typeof vault !== 'string' || !vault.trim()) {
+        issues.push({ message: 'vault 必须是非空字符串（vault 目录的绝对路径）', path: ['vault'] })
+      } else {
+        out.vault = vault
+      }
+
+      const leetcodeBase = raw.leetcodeBase ?? DEFAULT_BASE
+      if (typeof leetcodeBase !== 'string' || !/^https?:\/\//i.test(leetcodeBase.trim())) {
+        issues.push({ message: 'leetcodeBase 必须是 http(s) 地址', path: ['leetcodeBase'] })
+      } else {
+        out.leetcodeBase = leetcodeBase.trim()
+      }
+
+      return issues.length ? { issues } : { value: out }
+    },
+  },
+}
+
+// 运行时配置（apply 里由已验证的 config 填充；默认值与 schema 一致，作为无 config 时的兜底）
+let VAULT = DEFAULT_VAULT
+let LEETCODE_BASE = DEFAULT_BASE
 
 // 本地时区日期（避免 UTC 在凌晨 0-8 点记成"昨天"）
 const today = () => {
@@ -102,7 +135,11 @@ function runGit(cwd, args) {
   }
 }
 
-export function apply(ctx) {
+export function apply(ctx, config) {
+  // 从 config schema 读取配置（Cordis 已校验并合并默认值；无 config 时回落默认值）
+  VAULT = config?.vault ?? DEFAULT_VAULT
+  LEETCODE_BASE = config?.leetcodeBase ?? DEFAULT_BASE
+
   // ---- /lc-fupan：触发 AI 复盘指定题目（命令 handler 通过 agent.steer 投递一条用户消息给模型） ----
   ctx.commands.register({
     name: 'lc-fupan',

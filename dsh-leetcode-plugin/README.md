@@ -32,12 +32,16 @@ dsh web
 | `leetcode_record_note` | 往某题笔记追加 AI 思路/复习状态/复杂度（number/insight/status/time/space） |
 | `leetcode_list_notes` | 列出已有题目笔记 |
 
-## 配置（环境变量，可覆盖默认值）
+## 配置（插件 config schema）
 
-| 变量 | 默认值 |
-|---|---|
-| `DSH_LEETCODE_VAULT` | `/Users/panxingbang/Desktop/leetcode/leetcode` |
-| `DSH_LEETCODE_BASE` | `https://leetcode.cn` |
+配置不再是环境变量，改为插件自己的 `Config`（Cordis config schema，带默认值与校验）：
+
+| 字段 | 默认值 | 说明 |
+|---|---|---|
+| `vault` | `/Users/panxingbang/Desktop/leetcode/leetcode` | Obsidian vault 目录的绝对路径 |
+| `leetcodeBase` | `https://leetcode.cn` | LeetCode 站点（`leetcode.cn` / `leetcode.com`） |
+
+默认值写在 `cordis.patch.yml` 的 `id: leetcode` 条目 `config` 里，要改就改那里；也可以在 profile 的 `cordis.patch.yml` 里按 `id: leetcode` 重写 `config`（**整段替换，不是逐字段合并**，漏写的字段会回落到上面默认值）。改完重启 `dsh web` 生效。
 
 ## 工作流
 
