@@ -1,2 +1,7 @@
 .DS_Store
 *.DS_Store
+
+# Obsidian 本地界面状态（机器相关，不入库）
+**/.obsidian/workspace.json
+**/.obsidian/workspace-mobile.json
+**/.obsidian/graph.json

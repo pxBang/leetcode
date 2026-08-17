@@ -1,11 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { spawnSync } from 'node:child_process'
 
 export const name = 'dsh-leetcode-plugin'
 export const inject = ['commands', 'tools']
 
 // ---- 配置（环境变量可覆盖） ----
-const VAULT = process.env.DSH_LEETCODE_VAULT ?? '/Users/panxingbang/Desktop/deepseek/dsh/leetcode'
+const VAULT = process.env.DSH_LEETCODE_VAULT ?? '/Users/panxingbang/Desktop/leetcode/leetcode'
 const LEETCODE_BASE = process.env.DSH_LEETCODE_BASE ?? 'https://leetcode.cn'
 
 // 本地时区日期（避免 UTC 在凌晨 0-8 点记成"昨天"）
@@ -77,6 +78,30 @@ function createFallbackNote(number, title) {
   return { file, rel }
 }
 
+// ---- git 辅助（push / pull 命令共用） ----
+
+// 从 start 目录向上找最近的 .git（vault 可能只是仓库里的一个子目录）
+function findGitRoot(start) {
+  let dir = start
+  while (true) {
+    if (existsSync(join(dir, '.git'))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) return null
+    dir = parent
+  }
+}
+
+// 用 spawnSync 执行 git，避免 shell 转义问题（提交信息可含空格/特殊字符）
+function runGit(cwd, args) {
+  const r = spawnSync('git', args, { cwd, encoding: 'utf8' })
+  return {
+    ok: r.status === 0,
+    code: r.status ?? 1,
+    out: (r.stdout || '').trim(),
+    err: (r.stderr || '').trim(),
+  }
+}
+
 export function apply(ctx) {
   // ---- /lc-fupan：触发 AI 复盘指定题目（命令 handler 通过 agent.steer 投递一条用户消息给模型） ----
   ctx.commands.register({
@@ -97,6 +122,64 @@ export function apply(ctx) {
       ].join('\n')
       inv.agent.steer(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
       return { kind: 'success', text: `已触发第 ${number} 题复盘，AI 正在分析…` }
+    },
+  })
+
+  // ---- /lc-push：git add -A → commit（有变更才提交）→ push 到远端 ----
+  ctx.commands.register({
+    name: 'lc-push',
+    description: '把本地刷题记录提交并推送到远端仓库（git add -A + commit + push）',
+    input: { hint: '提交信息（可选），如 /lc-push 今日刷题' },
+    handler(inv) {
+      const root = findGitRoot(VAULT)
+      if (!root) return { kind: 'error', text: `未找到 git 仓库（从 ${VAULT} 向上查找 .git）` }
+
+      const add = runGit(root, ['add', '-A'])
+      if (!add.ok) return { kind: 'error', text: `git add 失败：${add.err}` }
+
+      // --quiet：0 = 无变更，1 = 有变更，>1 = 出错
+      const diff = runGit(root, ['diff', '--cached', '--quiet'])
+      if (diff.code > 1) return { kind: 'error', text: `检查暂存区失败：${diff.err}` }
+
+      const parts = []
+      if (diff.code === 1) {
+        const msg = String(inv.rawInput ?? '').trim() || `刷题记录 ${today()}`
+        const commit = runGit(root, ['commit', '-m', msg])
+        if (!commit.ok) return { kind: 'error', text: `git commit 失败：${commit.err}` }
+        parts.push(commit.out)
+      } else {
+        parts.push('无新变更，跳过提交')
+      }
+
+      const branch = runGit(root, ['branch', '--show-current'])
+      const b = branch.ok ? branch.out : ''
+      if (!b) return { kind: 'error', text: '当前处于 detached HEAD，无法自动推送，请手动处理' }
+
+      const push = runGit(root, ['push', '-u', 'origin', b])
+      if (!push.ok) return { kind: 'error', text: `git push 失败：${push.err}` }
+      parts.push(push.out || '已推送到远端')
+
+      return { kind: 'success', text: parts.filter(Boolean).join('\n') }
+    },
+  })
+
+  // ---- /lc-pull：从远端拉取最新（--ff-only 快进，避免产生 merge commit） ----
+  ctx.commands.register({
+    name: 'lc-pull',
+    description: '从远端拉取最新（git pull --ff-only，快进合并，不产生 merge commit）',
+    input: { hint: '无参数' },
+    handler() {
+      const root = findGitRoot(VAULT)
+      if (!root) return { kind: 'error', text: `未找到 git 仓库（从 ${VAULT} 向上查找 .git）` }
+
+      const pull = runGit(root, ['pull', '--ff-only'])
+      if (!pull.ok) {
+        return {
+          kind: 'error',
+          text: `git pull 失败：${pull.err || pull.out}\n（本地与远端分叉、或本地有未推送提交时无法快进；可先 /lc-push 推送，或手动 git pull --rebase）`,
+        }
+      }
+      return { kind: 'success', text: pull.out || '已更新到远端最新' }
     },
   })
 
