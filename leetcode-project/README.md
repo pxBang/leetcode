@@ -39,7 +39,7 @@ Chrome 装 [LeetLog](https://chromewebstore.google.com/detail/leetlog-%E2%80%94-
 
 ### 3. 装 DSH 插件
 ```bash
-dsh plugin --profile web add /Users/panxingbang/Desktop/leetcode/dsh-leetcode-plugin
+dsh plugin --profile web add ./dsh-leetcode-plugin
 # 重启加载（插件集合变更在重启后生效）
 dsh web
 ```
@@ -63,10 +63,9 @@ dsh web
 ### 配置（插件 config schema）
 | 字段 | 默认值 | 说明 |
 |---|---|---|
-| `vault` | `/Users/panxingbang/Desktop/leetcode/leetcode` | Obsidian vault 目录 |
 | `leetcodeBase` | `https://leetcode.cn` | LeetCode 站点 |
 
-配置写在 `dsh-leetcode-plugin/cordis.patch.yml` 的 `id: leetcode` 条目 `config` 里，改完重启 `dsh web` 生效。
+`vault` 无需配置：插件自动识别为同仓库的 `leetcode/` 目录，找不到会直接报错。`leetcodeBase` 写在 `dsh-leetcode-plugin/cordis.patch.yml` 的 `id: leetcode` 条目 `config` 里，改完重启 `dsh web` 生效。
 
 ## 日常刷题工作流
 

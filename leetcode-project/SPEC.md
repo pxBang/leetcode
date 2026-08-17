@@ -113,10 +113,9 @@ LeetLog 按英文 slug 命名：`solutions/NNNN-slug.md`（如 `0001-two-sum.md`
 ### 5.4 配置（插件 config schema）
 | 字段 | 默认值 | 说明 |
 |---|---|---|
-| `vault` | `/Users/panxingbang/Desktop/leetcode/leetcode` | Obsidian vault 目录 |
 | `leetcodeBase` | `https://leetcode.cn` | LeetCode 站点 |
 
-通过 `export const Config`（手写 standard-schema，零依赖）声明，Cordis 加载时校验并合并默认值；配置写在 `dsh-leetcode-plugin/cordis.patch.yml` 的 `id: leetcode` 条目 `config` 里（整段替换，漏写字段回落默认值）。
+`vault` 无需配置：插件从自身位置自动推导（同仓库的 `leetcode/` 目录），目录不存在时命令/工具直接报错。`leetcodeBase` 通过 `export const Config`（手写 standard-schema，零依赖）声明，Cordis 加载时校验并合并默认值；配置写在 `dsh-leetcode-plugin/cordis.patch.yml` 的 `id: leetcode` 条目 `config` 里（整段替换，漏写字段回落默认值）。
 
 ## 6. 工作流
 

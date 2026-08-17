@@ -1,12 +1,16 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
 export const name = 'dsh-leetcode-plugin'
 export const inject = ['commands', 'tools']
 
-// ---- 默认配置（可被 cordis.patch.yml 里的 config 覆盖） ----
-const DEFAULT_VAULT = '/Users/panxingbang/Desktop/leetcode/leetcode'
+// ---- 配置 ----
+// vault 自动推导：插件与 vault（leetcode/）同仓库、互为兄弟目录。
+// 插件通过 link: 链进 profile，Node 加载 ESM 时把 symlink 解析为真实路径，
+// 因此 import.meta.url 指向仓库内的 index.js，上一级即仓库根，再进 leetcode/ 即 vault。
+const VAULT = join(dirname(fileURLToPath(import.meta.url)), '..', 'leetcode')
 const DEFAULT_BASE = 'https://leetcode.cn'
 
 // ---- 插件配置 schema（零依赖：手写 standard-schema 协议，Cordis 在加载时校验并合并默认值） ----
@@ -18,13 +22,6 @@ export const Config = {
       const issues = []
       const raw = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
       const out = {}
-
-      const vault = raw.vault ?? DEFAULT_VAULT
-      if (typeof vault !== 'string' || !vault.trim()) {
-        issues.push({ message: 'vault 必须是非空字符串（vault 目录的绝对路径）', path: ['vault'] })
-      } else {
-        out.vault = vault
-      }
 
       const leetcodeBase = raw.leetcodeBase ?? DEFAULT_BASE
       if (typeof leetcodeBase !== 'string' || !/^https?:\/\//i.test(leetcodeBase.trim())) {
@@ -38,9 +35,14 @@ export const Config = {
   },
 }
 
-// 运行时配置（apply 里由已验证的 config 填充；默认值与 schema 一致，作为无 config 时的兜底）
-let VAULT = DEFAULT_VAULT
+// 运行时配置（apply 里由已验证的 config 填充；无 config 时回落默认值）
 let LEETCODE_BASE = DEFAULT_BASE
+
+// vault 缺失时的报错信息（"没找到直接报错"，不静默回退）
+const vaultError = () =>
+  existsSync(VAULT)
+    ? null
+    : `vault 目录不存在：${VAULT}\n（插件从自身位置自动推导 vault = 同仓库的 leetcode/，请确认目录结构为 <仓库>/leetcode 与 <仓库>/dsh-leetcode-plugin 同级）`
 
 // 本地时区日期（避免 UTC 在凌晨 0-8 点记成"昨天"）
 const today = () => {
@@ -137,7 +139,6 @@ function runGit(cwd, args) {
 
 export function apply(ctx, config) {
   // 从 config schema 读取配置（Cordis 已校验并合并默认值；无 config 时回落默认值）
-  VAULT = config?.vault ?? DEFAULT_VAULT
   LEETCODE_BASE = config?.leetcodeBase ?? DEFAULT_BASE
 
   // ---- /lc-fupan：触发 AI 复盘指定题目（命令 handler 通过 agent.steer 投递一条用户消息给模型） ----
@@ -146,6 +147,8 @@ export function apply(ctx, config) {
     description: '复盘指定编号的 LeetCode 题：读取笔记 → AI 分析解法 → 写入复盘结果',
     input: { hint: '题目编号，如 26' },
     handler(inv) {
+      const vaultErr = vaultError()
+      if (vaultErr) return { kind: 'error', text: vaultErr }
       const number = String(inv.rawInput ?? '').trim().replace(/\D/g, '')
       if (!number) return { kind: 'error', text: '请提供题目编号，例如 /lc-fupan 26' }
       const found = findNoteByNumber(number)
@@ -168,6 +171,8 @@ export function apply(ctx, config) {
     description: '把本地刷题记录提交并推送到远端仓库（git add -A + commit + push）',
     input: { hint: '提交信息（可选），如 /lc-push 今日刷题' },
     handler(inv) {
+      const vaultErr = vaultError()
+      if (vaultErr) return { kind: 'error', text: vaultErr }
       const root = findGitRoot(VAULT)
       if (!root) return { kind: 'error', text: `未找到 git 仓库（从 ${VAULT} 向上查找 .git）` }
 
@@ -206,6 +211,8 @@ export function apply(ctx, config) {
     description: '从远端拉取最新（git pull --ff-only，快进合并，不产生 merge commit）',
     input: { hint: '无参数' },
     handler() {
+      const vaultErr = vaultError()
+      if (vaultErr) return { kind: 'error', text: vaultErr }
       const root = findGitRoot(VAULT)
       if (!root) return { kind: 'error', text: `未找到 git 仓库（从 ${VAULT} 向上查找 .git）` }
 
@@ -260,6 +267,8 @@ export function apply(ctx, config) {
     },
     output: { schema: { type: 'string' }, render: textRender },
     async execute(args) {
+      const vaultErr = vaultError()
+      if (vaultErr) return vaultErr
       const number = String(args?.number ?? '').trim()
       if (!number) return '缺少 number 参数'
       const target = findNoteByNumber(number) ?? createFallbackNote(number, args?.title)
@@ -277,6 +286,8 @@ export function apply(ctx, config) {
     parameters: { type: 'object', properties: {} },
     output: { schema: { type: 'string' }, render: textRender },
     async execute() {
+      const vaultErr = vaultError()
+      if (vaultErr) return vaultErr
       const dir = join(VAULT, 'solutions')
       if (!existsSync(dir)) return '（还没有任何题目笔记）'
       const files = readdirSync(dir).filter((f) => f.endsWith('.md')).sort()

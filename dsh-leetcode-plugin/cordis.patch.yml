@@ -1,9 +1,8 @@
 # dsh-leetcode-plugin 的 bundle patch：把插件行插入 DSH Web profile 组合。
-# 这里的 config 是插件配置的「默认层」；要覆盖请在你的 profile cordis.patch.yml 里
-# 按 id: leetcode 重写整段 config（整段替换，不是逐字段合并；漏写的字段回落到 index.js 的默认值）。
+# vault 无需配置：插件从自身位置自动推导（同仓库的 leetcode/ 目录），找不到直接报错。
+# 要覆盖 leetcodeBase 请在 profile 的 cordis.patch.yml 里按 id: leetcode 重写整段 config。
 - insert:
     - id: leetcode
       name: dsh-leetcode-plugin
       config:
-        vault: /Users/panxingbang/Desktop/leetcode/leetcode
         leetcodeBase: https://leetcode.cn
