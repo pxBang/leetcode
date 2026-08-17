@@ -137,6 +137,34 @@ function runGit(cwd, args) {
   }
 }
 
+// 截断长文本（避免把超大 diff 整个塞进提示词）
+const clip = (s, max) => {
+  const t = String(s ?? '')
+  return t.length > max ? t.slice(0, max) + `\n…（已截断，共 ${t.length} 字符）` : t
+}
+
+// 共享：把当前改动提交并推送（git add -A → commit → push）；返回 { ok, text }
+function commitAndPush(root, message) {
+  const add = runGit(root, ['add', '-A'])
+  if (!add.ok) return { ok: false, text: `git add 失败：${add.err}` }
+
+  const diff = runGit(root, ['diff', '--cached', '--quiet'])
+  if (diff.code > 1) return { ok: false, text: `检查暂存区失败：${diff.err}` }
+  if (diff.code === 0) return { ok: true, text: '无新变更，跳过提交' }
+
+  const commit = runGit(root, ['commit', '-m', message])
+  if (!commit.ok) return { ok: false, text: `git commit 失败：${commit.err}` }
+
+  const branch = runGit(root, ['branch', '--show-current'])
+  const b = branch.ok ? branch.out : ''
+  if (!b) return { ok: false, text: '当前处于 detached HEAD，无法自动推送，请手动处理' }
+
+  const push = runGit(root, ['push', '-u', 'origin', b])
+  if (!push.ok) return { ok: false, text: `git push 失败：${push.err}` }
+
+  return { ok: true, text: [commit.out, push.out || '已推送到远端'].filter(Boolean).join('\n') }
+}
+
 export function apply(ctx, config) {
   // 从 config schema 读取配置（Cordis 已校验并合并默认值；无 config 时回落默认值）
   LEETCODE_BASE = config?.leetcodeBase ?? DEFAULT_BASE
@@ -165,43 +193,48 @@ export function apply(ctx, config) {
     },
   })
 
-  // ---- /lc-push：git add -A → commit（有变更才提交）→ push 到远端 ----
+  // ---- /lc-push：git add -A → commit → push；提交信息可手填，不填则由 AI 根据改动自动生成 ----
   ctx.commands.register({
     name: 'lc-push',
-    description: '把本地刷题记录提交并推送到远端仓库（git add -A + commit + push）',
-    input: { hint: '提交信息（可选），如 /lc-push 今日刷题' },
+    description: '把本地刷题改动提交并推送到远端（提交信息可手填，不填则由 AI 根据改动自动生成）',
+    input: { hint: '提交信息（可选），如 /lc-push 完成第88题' },
     handler(inv) {
       const vaultErr = vaultError()
       if (vaultErr) return { kind: 'error', text: vaultErr }
       const root = findGitRoot(VAULT)
       if (!root) return { kind: 'error', text: `未找到 git 仓库（从 ${VAULT} 向上查找 .git）` }
 
-      const add = runGit(root, ['add', '-A'])
-      if (!add.ok) return { kind: 'error', text: `git add 失败：${add.err}` }
-
-      // --quiet：0 = 无变更，1 = 有变更，>1 = 出错
-      const diff = runGit(root, ['diff', '--cached', '--quiet'])
-      if (diff.code > 1) return { kind: 'error', text: `检查暂存区失败：${diff.err}` }
-
-      const parts = []
-      if (diff.code === 1) {
-        const msg = String(inv.rawInput ?? '').trim() || `刷题记录 ${today()}`
-        const commit = runGit(root, ['commit', '-m', msg])
-        if (!commit.ok) return { kind: 'error', text: `git commit 失败：${commit.err}` }
-        parts.push(commit.out)
-      } else {
-        parts.push('无新变更，跳过提交')
+      // 有显式提交信息：直接同步提交并推送（不惊动 AI）
+      const explicit = String(inv.rawInput ?? '').trim()
+      if (explicit) {
+        const r = commitAndPush(root, explicit)
+        return { kind: r.ok ? 'success' : 'error', text: r.text }
       }
 
-      const branch = runGit(root, ['branch', '--show-current'])
-      const b = branch.ok ? branch.out : ''
-      if (!b) return { kind: 'error', text: '当前处于 detached HEAD，无法自动推送，请手动处理' }
+      // 无显式信息：先暂存并确认有改动（--quiet：0 = 无变更，1 = 有变更，>1 = 出错）
+      const add = runGit(root, ['add', '-A'])
+      if (!add.ok) return { kind: 'error', text: `git add 失败：${add.err}` }
+      const diff = runGit(root, ['diff', '--cached', '--quiet'])
+      if (diff.code > 1) return { kind: 'error', text: `检查暂存区失败：${diff.err}` }
+      if (diff.code === 0) return { kind: 'success', text: '无新变更，跳过提交' }
 
-      const push = runGit(root, ['push', '-u', 'origin', b])
-      if (!push.ok) return { kind: 'error', text: `git push 失败：${push.err}` }
-      parts.push(push.out || '已推送到远端')
-
-      return { kind: 'success', text: parts.filter(Boolean).join('\n') }
+      // 把改动交给 AI 生成提交信息，再由 AI 调用 leetcode_commit 完成提交与推送
+      const stat = runGit(root, ['diff', '--cached', '--stat'])
+      const detail = runGit(root, ['diff', '--cached'])
+      const prompt = [
+        '请为下面的刷题改动生成一条 git commit message（中文、一句话，点出做了什么，例如「完成第88题 合并两个有序数组」或「复盘第26题 + 更新每日日志」），',
+        '然后立即用这条 message 调用 leetcode_commit 工具完成提交与推送。',
+        '',
+        '改动概览（git diff --cached --stat）：',
+        clip(stat.out, 2000) || '(无)',
+        '',
+        '改动详情（git diff --cached，可能已截断）：',
+        clip(detail.out, 4000) || '(无)',
+        '',
+        '要求：message 不要带引号、不要换行；生成后立即调用 leetcode_commit(message=...) 提交并推送，不要只给文案不提交。',
+      ].join('\n')
+      inv.agent.steer(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
+      return { kind: 'success', text: '已暂存改动并交给 AI 生成提交信息，随后会自动提交并推送…' }
     },
   })
 
@@ -292,6 +325,29 @@ export function apply(ctx, config) {
       if (!existsSync(dir)) return '（还没有任何题目笔记）'
       const files = readdirSync(dir).filter((f) => f.endsWith('.md')).sort()
       return files.length ? files.map((f, i) => `${i + 1}. ${f}`).join('\n') : '（空）'
+    },
+  })
+
+  // 供 AI 在 /lc-push 无显式信息时调用：用生成的提交信息完成 commit + push
+  ctx.tools.register({
+    name: 'leetcode_commit',
+    description: '把本地刷题改动提交并推送到远端（git add -A + commit + push）。message 是 AI 根据改动生成的提交信息。',
+    parameters: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', description: '提交信息（commit message），一句话中文，不带引号' },
+      },
+      required: ['message'],
+    },
+    output: { schema: { type: 'string' }, render: textRender },
+    async execute(args) {
+      const message = String(args?.message ?? '').trim()
+      if (!message) return '缺少 message 参数'
+      const vaultErr = vaultError()
+      if (vaultErr) return vaultErr
+      const root = findGitRoot(VAULT)
+      if (!root) return `未找到 git 仓库（从 ${VAULT} 向上查找 .git）`
+      return commitAndPush(root, message).text
     },
   })
 }

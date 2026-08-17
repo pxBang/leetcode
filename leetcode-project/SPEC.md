@@ -23,7 +23,7 @@
 │                        DSH Web (http://127.0.0.1:3080)                       │
 │  dsh-leetcode-plugin（Cordis 插件，零依赖）                                    │
 │    · 命令：/lc-pick  /lc-fupan  /lc-push  /lc-pull                           │
-│    · 工具：leetcode_record_note  leetcode_list_notes                         │
+│    · 工具：leetcode_record_note  leetcode_list_notes  leetcode_commit        │
 └───────────────────────────────────────────────────────────────┬─────────────┘
                                                           git push/pull
                                                                  ▼
@@ -101,7 +101,7 @@ LeetLog 按英文 slug 命名：`solutions/NNNN-slug.md`（如 `0001-two-sum.md`
 |---|---|
 | `/lc-pick [偏好]` | 触发 AI 从 Top 150 挑一道题（AI 结合本地进度自行判断，不硬编码） |
 | `/lc-fupan <编号>` | 读笔记 → 投递复盘提示给 agent → 写回思路/状态/复杂度 |
-| `/lc-push [提交信息]` | git add -A + commit + push |
+| `/lc-push [提交信息]` | git add -A + commit + push（提交信息可选，不填则由 AI 根据改动自动生成） |
 | `/lc-pull` | git pull --ff-only |
 
 ### 5.3 工具（供 agent 调用）
@@ -109,6 +109,7 @@ LeetLog 按英文 slug 命名：`solutions/NNNN-slug.md`（如 `0001-two-sum.md`
 |---|---|
 | `leetcode_record_note` | 追加 insight / 状态 / 复杂度-时间 / 复杂度-空间 |
 | `leetcode_list_notes` | 列出 solutions/ 下文件名 |
+| `leetcode_commit` | 用 AI 生成的提交信息完成 commit + push |
 
 ### 5.4 配置（插件 config schema）
 | 字段 | 默认值 | 说明 |

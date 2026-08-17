@@ -51,7 +51,7 @@ dsh web
 |---|---|
 | `/lc-pick [偏好]` | 让 AI 从 Top Interview 150 挑一道题（AI 结合进度自行判断） |
 | `/lc-fupan <编号>` | 触发 AI 复盘某题，思路/状态/复杂度写回笔记 |
-| `/lc-push [提交信息]` | git add -A + commit + push 到远端 |
+| `/lc-push [提交信息]` | git add -A + commit + push 到远端（提交信息可选，不填则由 AI 根据改动自动生成） |
 | `/lc-pull` | 从远端拉取最新（--ff-only 快进） |
 
 ### 工具（供 agent 调用）
@@ -59,6 +59,7 @@ dsh web
 |---|---|
 | `leetcode_record_note` | 追加 AI 思路/状态/复杂度：number/insight/status/time/space |
 | `leetcode_list_notes` | 列出已有笔记 |
+| `leetcode_commit` | 用 AI 生成的提交信息完成 commit + push |
 
 ### 配置（插件 config schema）
 | 字段 | 默认值 | 说明 |
