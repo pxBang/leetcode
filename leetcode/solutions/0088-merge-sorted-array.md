@@ -68,7 +68,7 @@ total_runs: 0
 讲解视频: [YouTube](https://www.youtube.com/results?search_query=leetcode%2088.%20Merge%20Sorted%20Array) · [Bilibili](https://search.bilibili.com/all?keyword=leetcode%2088.%20Merge%20Sorted%20Array)
 
 ## 第 1 次 · 2026-08-17 周一
-⏱ 开始 11:45 → 首提 11:45 · 编码 1 分钟 → AC 11:45 · 提交 1 次 / 通过 1 次
+⏱ 开始 11:45 → 首提 11:45 · 编码 1 分钟 → AC 11:45 · 提交 1 次 / 通过 1 次 · 本题停留 181 分钟
 
 ### ✅ 通过代码 · C++ · 11:45（0 ms · 12.1 MB）
 > [!success]- 代码
