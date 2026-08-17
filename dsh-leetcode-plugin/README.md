@@ -20,6 +20,7 @@ dsh web
 
 | 命令 | 作用 |
 |---|---|
+| `/lc-pick [偏好]` | 让 AI 从 Top Interview 150 挑一道题（AI 结合本地进度自行判断，可加偏好如「想练 DP」） |
 | `/lc-fupan <编号>` | 触发 AI 复盘某题：读笔记 → 分析解法 → 写回思路/状态/复杂度 |
 | `/lc-push [提交信息]` | git add -A + commit + push 到远端（默认提交信息「刷题记录 日期」） |
 | `/lc-pull` | 从远端拉取最新（git pull --ff-only，快进合并，不产生 merge commit） |
@@ -40,6 +41,7 @@ dsh web
 
 ## 工作流
 
-1. LeetCode 刷题 → LeetLog 自动计时、AC 后自动写笔记到 vault 的 `solutions/`
-2. 回 DSH 用 `/lc-fupan <编号>` 让 AI 复盘，思路/状态/复杂度写进同一篇笔记
-3. `/lc-push` 提交推送；在别的机器改动后 `/lc-pull` 拉取最新
+1. 用 `/lc-pick` 让 AI 挑下一道题（AI 结合进度判断）
+2. LeetCode 刷题 → LeetLog 自动计时、AC 后自动写笔记到 vault 的 `solutions/`
+3. 回 DSH 用 `/lc-fupan <编号>` 让 AI 复盘，思路/状态/复杂度写进同一篇笔记
+4. `/lc-push` 提交推送；在别的机器改动后 `/lc-pull` 拉取最新

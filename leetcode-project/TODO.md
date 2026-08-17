@@ -1,12 +1,12 @@
 # 状态与待办
 
-> 插件版本 0.6.0。命令：`/lc-fupan` `/lc-push` `/lc-pull`；工具：`leetcode_record_note` / `leetcode_list_notes`。
+> 插件版本 0.7.0。命令：`/lc-pick` `/lc-fupan` `/lc-push` `/lc-pull`；工具：`leetcode_record_note` / `leetcode_list_notes`。
 
 ## ✅ 已完成
 
 - [x] vault 骨架 + 目录解耦（vault / 文档 / 插件分开放）
 - [x] LeetLog 集成：计时 + AC 自动存码到 `solutions/`
-- [x] 插件 v0.6.0（零依赖）：`/lc-fupan` 复盘 + `/lc-push` `/lc-pull` git 同步
+- [x] 插件 v0.7.0（零依赖）：`/lc-pick` 选题 + `/lc-fupan` 复盘 + `/lc-push` `/lc-pull` git 同步
 - [x] git 远端 `pxBang/leetcode` 已配置，首次提交完成
 
 ## 🟡 待办（可选）

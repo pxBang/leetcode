@@ -1,6 +1,6 @@
 # LeetCode 刷题系统 Spec
 
-> 版本：0.6 · 2026-08-17
+> 版本：0.7 · 2026-08-17
 > 目标：官方题库刷题 + 每次刷完有记录（代码 + 我的思路 + AI 辅助思路 + 复盘），记录本地化、可搜索、可版本管理，并能从 DSH Web 页面复盘与 git 同步。
 
 ## 1. 目标
@@ -22,7 +22,7 @@
 ┌──────────────────────────────────────────────────────────────────┴─────────┐
 │                        DSH Web (http://127.0.0.1:3080)                       │
 │  dsh-leetcode-plugin（Cordis 插件，零依赖）                                    │
-│    · 命令：/lc-fupan  /lc-push  /lc-pull                                     │
+│    · 命令：/lc-pick  /lc-fupan  /lc-push  /lc-pull                           │
 │    · 工具：leetcode_record_note  leetcode_list_notes                         │
 └───────────────────────────────────────────────────────────────┬─────────────┘
                                                           git push/pull
@@ -98,6 +98,7 @@ LeetLog 按英文 slug 命名：`solutions/NNNN-slug.md`（如 `0001-two-sum.md`
 ### 5.2 命令（slash，不耗 token）
 | 命令 | 行为 |
 |---|---|
+| `/lc-pick [偏好]` | 触发 AI 从 Top 150 挑一道题（AI 结合本地进度自行判断，不硬编码） |
 | `/lc-fupan <编号>` | 读笔记 → 投递复盘提示给 agent → 写回思路/状态/复杂度 |
 | `/lc-push [提交信息]` | git add -A + commit + push |
 | `/lc-pull` | git pull --ff-only |
@@ -117,10 +118,11 @@ LeetLog 按英文 slug 命名：`solutions/NNNN-slug.md`（如 `0001-two-sum.md`
 ## 6. 工作流
 
 ### 6.1 每日刷题
-1. LeetCode 刷题（LeetLog 自动计时）。
-2. AC → LeetLog 自动写笔记。
-3. `/lc-fupan <编号>` 让 AI 复盘，思路/状态/复杂度落盘（或用「AI 总结卡片话术」）。
-4. `/lc-push` 提交推送；换机器后 `/lc-pull` 拉最新。
+1. `/lc-pick` 让 AI 挑下一道题（AI 结合进度判断）。
+2. LeetCode 刷题（LeetLog 自动计时）。
+3. AC → LeetLog 自动写笔记。
+4. `/lc-fupan <编号>` 让 AI 复盘，思路/状态/复杂度落盘（或用「AI 总结卡片话术」）。
+5. `/lc-push` 提交推送；换机器后 `/lc-pull` 拉最新。
 
 ### 6.2 复习节奏
 - D+1：不看任何东西重写一遍。

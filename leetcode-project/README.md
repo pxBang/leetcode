@@ -49,6 +49,7 @@ dsh web
 ### 命令（slash，不耗 token）
 | 命令 | 作用 |
 |---|---|
+| `/lc-pick [偏好]` | 让 AI 从 Top Interview 150 挑一道题（AI 结合进度自行判断） |
 | `/lc-fupan <编号>` | 触发 AI 复盘某题，思路/状态/复杂度写回笔记 |
 | `/lc-push [提交信息]` | git add -A + commit + push 到远端 |
 | `/lc-pull` | 从远端拉取最新（--ff-only 快进） |
@@ -68,12 +69,13 @@ dsh web
 ## 日常刷题工作流
 
 ```
-① 在 LeetCode 刷题（LeetLog 自动计时）
-② AC → LeetLog 自动生成 solutions/NNNN-slug.md（题面+代码+用时+统计）
-③ 回 DSH 用 /lc-fupan NNNN 让 AI 复盘 → 思路/状态/复杂度写进同一篇笔记
-④ （可选）把 000-AI总结卡片话术.md 整段发给任意 AI，得到卡片贴进笔记
-⑤ /lc-push 提交推送；换了机器改动后 /lc-pull 拉最新
-⑥ Alt-Tab 切 Obsidian 复习，Dataview 看统计
+① 用 /lc-pick 让 AI 挑下一道题（AI 结合进度判断）
+② 在 LeetCode 刷题（LeetLog 自动计时）
+③ AC → LeetLog 自动生成 solutions/NNNN-slug.md（题面+代码+用时+统计）
+④ 回 DSH 用 /lc-fupan NNNN 让 AI 复盘 → 思路/状态/复杂度写进同一篇笔记
+⑤ （可选）把 000-AI总结卡片话术.md 整段发给任意 AI，得到卡片贴进笔记
+⑥ /lc-push 提交推送；换了机器改动后 /lc-pull 拉最新
+⑦ Alt-Tab 切 Obsidian 复习，Dataview 看统计
 ```
 
 **核心原则：AI 只给思路，不给答案；刷完必须留卡，不留卡等于白刷。**

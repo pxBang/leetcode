@@ -183,6 +183,27 @@ export function apply(ctx) {
     },
   })
 
+  // ---- /lc-pick：让 AI 从 Top Interview 150 里挑一道题（结合本地做题进度判断） ----
+  ctx.commands.register({
+    name: 'lc-pick',
+    description: '让 AI 从 Top Interview 150 题单里挑一道题来刷（AI 结合本地做题进度自行判断，不硬编码）',
+    input: { hint: '可选：补充你的偏好，如 /lc-pick 想练动态规划' },
+    handler(inv) {
+      const extra = String(inv.rawInput ?? '').trim()
+      const prompt = [
+        '请帮我从 LeetCode「面试经典 150 题」（Top Interview 150，https://leetcode.cn/studyplan/top-interview-150/）里挑一道题来刷。',
+        '请按下面步骤做：',
+        '1. 先调用 leetcode_list_notes 工具，了解我已经做过的题（本地 solutions/ 目录）。',
+        '2. 结合我的做题进度，从 Top 150 里挑一道「合适」的题——不要机械地选第一道没做的，可以综合考虑：难度递进、我已刷过的题型、是否连续同类题，以及有没有「复习中 / 未掌握」的题需要重刷（需要的话用 read 工具读对应笔记 frontmatter 的「状态」字段）。',
+        '3. 只推荐一道题，给出：题号、中文标题、难度、leetcode.cn 的可点击链接（形如 https://leetcode.cn/problems/<slug>/），再加一句简短理由（为什么现在做这道）。',
+        extra ? `补充偏好：${extra}` : '',
+        '要求：只输出一道题的推荐，不要列清单。',
+      ].filter(Boolean).join('\n')
+      inv.agent.steer(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
+      return { kind: 'success', text: '已让 AI 挑题，正在结合你的进度判断…' }
+    },
+  })
+
   // ---- 工具（供 agent 调用） ----
   // 定位：LeetLog 负责"采集代码/统计"，本工具只负责"追加 AI 思路 + 复习状态 + 复杂度"
   ctx.tools.register({
