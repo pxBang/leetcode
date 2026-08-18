@@ -165,6 +165,15 @@ function commitAndPush(root, message) {
   return { ok: true, text: [commit.out, push.out || '已推送到远端'].filter(Boolean).join('\n') }
 }
 
+// 苏格拉底式助教指令（借鉴用户提供的 prompt，蒸馏为提示词）
+const SOCRATIC_GUIDE = [
+  '你现在是我的编程 / 算法助教，用「苏格拉底式提问」帮我解开下面代码的疑惑。',
+  '· 目标：帮我思考与理解问题，而不是直接给我答案。',
+  '· 方法：用启发式提问，一次只给一个关键提示，引导我主动思考、推理、实践、总结，等我回应再继续，不要一次倒完。',
+  '· 边界：除非我明确说「给我完整代码 / 完整解法」，否则不许给完整代码或完整思路；不许直接说「改成 X 就行」，要引导我自己发现。',
+  '· 节奏：先复述我的疑问确认理解，再从我代码里最关键的那一处开始提问或给提示。',
+].join('\n')
+
 export function apply(ctx, config) {
   // 从 config schema 读取配置（Cordis 已校验并合并默认值；无 config 时回落默认值）
   LEETCODE_BASE = config?.leetcodeBase ?? DEFAULT_BASE
@@ -278,6 +287,42 @@ export function apply(ctx, config) {
       ].filter(Boolean).join('\n')
       inv.agent.steer(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
       return { kind: 'success', text: '已让 AI 挑题，正在结合你的进度判断…' }
+    },
+  })
+
+  // ---- /lc-ask：苏格拉底式解答某题代码里的疑惑（读笔记 → 结合代码 → 引导而非给答案） ----
+  ctx.commands.register({
+    name: 'lc-ask',
+    description: '就某道题里的代码，用苏格拉底式提问引导你独立解决疑惑（默认不给完整答案）',
+    input: { hint: '题目编号 + 你的疑问，如 /lc-ask 1 这里为什么用哈希表' },
+    handler(inv) {
+      const vaultErr = vaultError()
+      if (vaultErr) return { kind: 'error', text: vaultErr }
+      const raw = String(inv.rawInput ?? '').trim()
+      const m = raw.match(/^(\d+)\s+(.+)$/)
+      if (!m) {
+        return { kind: 'error', text: '用法：/lc-ask <题目编号> <你的疑问>，例如 /lc-ask 1 这里为什么用哈希表' }
+      }
+      const number = m[1]
+      const question = m[2].trim()
+      const found = findNoteByNumber(number)
+      if (!found) {
+        return { kind: 'error', text: `第 ${number} 题还没有笔记（先在 LeetCode 刷完，LeetLog 会自动生成）` }
+      }
+      const note = readFileSync(found.file, 'utf8')
+      const prompt = [
+        SOCRATIC_GUIDE,
+        '',
+        `下面是我的题目笔记（LeetCode 第 ${number} 题，含我的解法代码）：`,
+        '```markdown',
+        note,
+        '```',
+        '',
+        '我的疑问：',
+        question,
+      ].join('\n')
+      inv.agent.steer(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
+      return { kind: 'success', text: `已请 AI 用苏格拉底式提问引导你解决第 ${number} 题的疑惑…` }
     },
   })
 

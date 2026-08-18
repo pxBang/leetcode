@@ -1,6 +1,6 @@
 # 状态与待办
 
-> 插件版本 0.7.1。命令：`/lc-pick` `/lc-fupan` `/lc-push` `/lc-pull`；工具：`leetcode_record_note` / `leetcode_list_notes`。
+> 插件版本 0.8.0。命令：`/lc-pick` `/lc-fupan` `/lc-ask` `/lc-push` `/lc-pull`；工具：`leetcode_record_note` / `leetcode_list_notes` / `leetcode_commit`。
 
 ## ✅ 已完成
 
@@ -9,6 +9,7 @@
 - [x] 插件 v0.7.0（零依赖）：`/lc-pick` 选题 + `/lc-fupan` 复盘 + `/lc-push` `/lc-pull` git 同步
 - [x] git 远端 `pxBang/leetcode` 已配置，首次提交完成
 - [x] 配置迁移到插件 config schema（手写 standard-schema `Config`），替代环境变量
+- [x] `/lc-ask`：苏格拉底式问答某题代码（读笔记 → 结合代码引导，默认不给完整答案）
 
 ## 🟡 待办（可选）
 

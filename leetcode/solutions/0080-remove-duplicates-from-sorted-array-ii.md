@@ -7,12 +7,12 @@ title: "Remove Duplicates from Sorted Array II"
 url: https://leetcode.cn/problems/remove-duplicates-from-sorted-array-ii/description/
 difficulty: Medium
 tags: [Array, Two Pointers]
-attempts: 1
+attempts: 2
 first_attempt: 2026-08-17
-last_attempt: 2026-08-17
-total_submissions: 1
-total_ac: 1
-total_runs: 5
+last_attempt: 2026-08-18
+total_submissions: 2
+total_ac: 2
+total_runs: 7
 ---
 
 # 80. Remove Duplicates from Sorted Array II
@@ -122,4 +122,41 @@ total_runs: 5
 
 ## AI 辅助思路
 
+- [2026-08-18] 已写出标准最优模板（第二次 AC）：int slow=0; for(int fast=0; fast<n; fast++) if(slow<2 || nums[slow-2]!=nums[fast]) nums[slow++]=nums[fast]; return slow; O(n)/O(1)。关键点全部到位：① slow 用「下一个写入位置 = 最终长度」习惯，故 return slow（非 slow+1）；② slow<2 靠 || 短路兜住前两个元素、防 nums[slow-2] 越界；③ 与「倒数第 2 个已保留元素」比较等价于「这值是否已出现 2 次」，依赖数组有序。相比首次的 common_len 状态机，本质是把「计数保留几个」换成更本质的「和倒数第 2 个比」。k=1 即 #26，任意 k 都是 if(i<k || nums[j]!=nums[i-k])。
+
 - [2026-08-17] 解法正确且最优：快慢指针 + common_len 计数，一次遍历 O(n)、原地 O(1)。你的写法把「当前值已保留几个」做成显式状态机，逻辑对但偏冗长、分支重复。更干净的「保留 k 个」通用模板：int i=0; for(int j=0;j<n;j++) if(i<2 || nums[j]!=nums[i-2]) nums[i++]=nums[j]; return i; —— 前 2 个永远保留，之后的元素只有当它 ≠ 倒数第 2 个已保留元素时才写入。k=1 时即退化成 #26 的 if(i<1 || nums[j]!=nums[i-1])，两题本质同一套路，记这个模板可一眼推广到任意 k。
+
+
+## 第 2 次 · 2026-08-18 周二
+⏱ 开始 10:20 → 首提 10:41 · 编码 21 分钟 → AC 10:41 · 提交 1 次 / 通过 1 次 · 运行 2 次 · 本题停留 32 分钟
+
+### ✅ 通过代码 · C++ · 10:41（6 ms · 19 MB）
+> [!success]- 代码
+> ```cpp
+> class Solution {
+> public:
+>     int removeDuplicates(vector<int>& nums) {
+>         int slow = 0; // 下一个要写入的位置
+>         for (int fast = 0; fast < nums.size(); fast++) {
+>             if (slow < 2 || nums[slow - 2] != nums[fast]) {
+>                 nums[slow] = nums[fast];
+>                 slow++;
+>             }
+>         }
+>         return slow;
+>     }
+> };
+> ```
+
+### 💭 思路 & 感悟
+-
+
+### 📚 学到了什么（新函数 / 新数据结构 / 新套路）
+- **保留2个相同元素 等价于 和已保留元素的倒数第二个来比**
+- slow 指向下一个要写入的位置
+- nums[fast] 指向下一个要判断的值
+- 跳过 等价于 fast++
+- 保留 等价于 nums[slow] = nums[fast], slow++, fast++
+
+### 🔀 多种解法
+-

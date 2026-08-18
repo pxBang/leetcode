@@ -22,6 +22,7 @@ dsh web
 |---|---|
 | `/lc-pick [偏好]` | 让 AI 从 Top Interview 150 挑一道题（AI 结合本地进度自行判断，可加偏好如「想练 DP」） |
 | `/lc-fupan <编号>` | 触发 AI 复盘某题：读笔记 → 分析解法 → 写回思路/状态/复杂度 |
+| `/lc-ask <编号> <疑问>` | 就某题代码用苏格拉底式提问引导你独立解惑（默认不给完整答案） |
 | `/lc-push [提交信息]` | git add -A + commit + push 到远端（提交信息可选，不填则由 AI 根据改动自动生成） |
 | `/lc-pull` | 从远端拉取最新（git pull --ff-only，快进合并，不产生 merge commit） |
 
